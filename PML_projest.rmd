@@ -1,0 +1,98 @@
+---
+title: "Practical_Machine_Learning_peergraded1"
+author: "Shruti"
+date: "20/10/2020"
+output: html_document
+
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+Let us go to the first step, which is "Data Preprocessing". We shall be loading the training and testing sets from a folder on the PC, and also be splitting the training dataset into train and test
+
+```{r Dataloading}
+library(caret)
+trainURL <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testURL <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+training <- read.csv(url(trainURL))
+testing <- read.csv(url(testURL))
+
+
+lbl <- createDataPartition(training$classe , p = 0.7, list = FALSE)
+train <- training[lbl, ]
+test <- training[-lbl, ]
+
+```
+
+Now for Data Cleaning. As we can see, a lot of variables have NA terms, and these need to be eliminated, also ones that have a variance near zero
+
+```{r}
+NZeroV <- nearZeroVar(train)
+train <- train[ ,-NZeroV]
+test <- test[ ,-NZeroV]
+
+
+lbl <- apply(train, 2, function(x) mean(is.na(x))) > 0.95
+train <- train[, -which(lbl, lbl == FALSE)]
+test <- test[, -which(lbl, lbl == FALSE)]
+train <- train[ , -(1:5)]
+test <- test[ , -(1:5)]
+
+```
+
+As a result of the preprocessing steps, we were able to reduce a whole lot of variables
+
+Exploratory Analysis
+
+Now we shall plot the correlation
+
+
+
+```{r CorrelationPlot, fig.width=14, fig.height=9}
+library(corrplot)
+corrMt <- cor(train[,-54])
+corrplot(corrMt, method = "color", type = "upper", tl.cex = 0.6, tl.col = rgb(0,0,0))
+```
+
+
+
+Now for predictive model analysis, we shall use Random forest and Decision tree
+
+
+## Decision Tree
+
+```{r DecisionTree, message = FALSE, warning = FALSE, fig.width=18, fig.height=10}
+library(rpart)
+library(rpart.plot)
+library(rattle)
+set.seed(14807)
+modelDecT <- rpart(classe ~ ., data = train, method = "class")
+fancyRpartPlot(modelDecT)
+predictDT <- predict(modelDecT, test, type = "class")
+
+```
+
+### Random Forest
+
+```{r RandomForest, message = FALSE}
+library(caret)
+set.seed(14807)
+control <- trainControl(method = "cv", number = 3, verboseIter=FALSE)
+modelRF <- train(classe ~ ., data = train, method = "rf", trControl = control)
+modelRF$finalModel
+predictRF <- predict(modelRF, test)
+```
+As Random Forest offers the maximum accuracy, we will go with Random Forest Model to predict our test data class variable.
+
+## Predicting Test Set Output
+
+```{r TestSetPrediction, messages = FALSE}
+predictRF <- predict(modelRF, testing)
+predictRF
+```
+
